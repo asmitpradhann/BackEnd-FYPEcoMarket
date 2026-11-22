@@ -405,25 +405,26 @@ def esewa_payment_verify(request):
                 'transaction_uuid': transaction_uuid
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # For testing, if we don't have transaction_code or total_amount, mark as success
+        from django.http import HttpResponseRedirect
+        frontend_url_base = "http://localhost:5173/order-confirmation"
+
+        # Already processed (or not awaiting payment): never change state again
+        if order.payment_status != 'pending':
+            result = 'success' if order.payment_status == 'completed' else 'failed'
+            return HttpResponseRedirect(f"{frontend_url_base}?order_id={order.id}&status={result}")
+
+        # Payment parameters are required; the old "mark as paid for testing" bypass was removed
         if not transaction_code or not total_amount:
-            # Mark payment as completed for testing
-            order.payment_status = 'completed'
-            order.status = 'confirmed'
-            order.esewa_ref_id = transaction_code or 'TEST-' + str(order.id)
-            order.save()
-            
-            # Award green points
-            if order.points_earned > 0:
-                award_points(order.user, order, order.points_earned)
-            
-            # Redirect to success page
-            frontend_url = f"http://localhost:5173/order-confirmation?order_id={order.id}&status=success"
-            
-            # Return HTML redirect for browser
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(frontend_url)
-        
+            return Response({'error': 'Missing payment parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # The amount paid must match what this order costs
+        try:
+            amount_ok = abs(Decimal(str(total_amount).replace(',', '')) - Decimal(str(order.total_amount))) <= Decimal('0.01')
+        except Exception:
+            amount_ok = False
+        if not amount_ok:
+            return HttpResponseRedirect(f"{frontend_url_base}?order_id={order.id}&status=failed")
+
         # Verify payment with eSewa
         verify_url = f"{ESEWA_VERIFY_URL}?product_code={ESEWA_MERCHANT_ID}&total_amount={total_amount}&transaction_uuid={transaction_uuid}"
         
@@ -510,16 +511,17 @@ def esewa_payment_failure(request):
         if transaction_uuid:
             try:
                 order = Order.objects.get(transaction_id=transaction_uuid)
-                order.payment_status = 'failed'
-                order.status = 'cancelled'
-                order.save()
                 order_id = order.id
-                
-                # Restore stock
-                for item in order.items.all():
-                    product = item.product
-                    product.stock += item.quantity
-                    product.save()
+                if order.payment_status == 'pending':
+                    order.payment_status = 'failed'
+                    order.status = 'cancelled'
+                    order.save()
+
+                    # Restore stock
+                    for item in order.items.all():
+                        product = item.product
+                        product.stock += item.quantity
+                        product.save()
                     
             except Order.DoesNotExist:
                 pass
@@ -848,6 +850,11 @@ def khalti_payment_verify(request):
     except Order.DoesNotExist:
         return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order_id}&status=failed')
 
+    # The pidx must be the one issued for this order, and the order must still be awaiting payment
+    if not pidx or pidx != order.transaction_id or order.payment_status != 'pending':
+        result = 'success' if order.payment_status == 'completed' else 'failed'
+        return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status={result}')
+
     # User cancelled
     if callback_status == 'User canceled':
         order.payment_status = 'failed'
@@ -867,7 +874,13 @@ def khalti_payment_verify(request):
         lookup_response = requests.post(KHALTI_LOOKUP_URL, json={'pidx': pidx}, headers=headers, timeout=15)
         lookup_data = lookup_response.json()
 
-        if lookup_data.get('status') == 'Completed':
+        paid_ok = False
+        try:
+            paid_ok = abs(int(lookup_data.get('total_amount', 0)) - int(Decimal(str(order.total_amount)) * 100)) <= 1
+        except Exception:
+            pass
+
+        if lookup_data.get('status') == 'Completed' and paid_ok:
             order.payment_status = 'completed'
             order.status = 'confirmed'
             order.save()

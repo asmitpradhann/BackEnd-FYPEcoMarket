@@ -133,6 +133,14 @@ def get_order_history(request):
     serializer = OrderSerializer(orders, many=True)
     return Response(serializer.data)
 
+def calculate_shipping_and_tax(subtotal):
+    """Server-side shipping and tax (same rules as the checkout page); never trust client values."""
+    subtotal = Decimal(str(subtotal))
+    shipping = Decimal('0') if subtotal >= 700 else Decimal('75')
+    tax = (subtotal * Decimal('0.13')).quantize(Decimal('1'), rounding='ROUND_HALF_UP')
+    return shipping, tax
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_order(request):
@@ -144,8 +152,7 @@ def create_order(request):
 
         total_amount = cart.total_price
         points_to_redeem = int(request.data.get('points_to_redeem', 0))
-        shipping_charge = Decimal(str(request.data.get('shipping_charge', 75)))
-        tax_amount = Decimal(str(request.data.get('tax_amount', 0)))
+        shipping_charge, tax_amount = calculate_shipping_and_tax(cart.total_price)
         points_discount = 0
 
         # Calculate total including shipping and tax
@@ -232,8 +239,7 @@ def initiate_esewa_payment(request):
 
         # Calculate total
         total_amount = float(cart.total_price)
-        shipping_charge = float(request.data.get('shipping_charge', 75))
-        tax_amount = float(request.data.get('tax_amount', 0))
+        shipping_charge, tax_amount = (float(v) for v in calculate_shipping_and_tax(cart.total_price))
         total_amount = total_amount + shipping_charge + tax_amount
 
         # Calculate green points to be earned (based on subtotal)
@@ -553,8 +559,7 @@ def create_cod_order(request):
 
         # Calculate total
         total_amount = cart.total_price
-        shipping_charge = Decimal(str(request.data.get('shipping_charge', 75)))
-        tax_amount = Decimal(str(request.data.get('tax_amount', 0)))
+        shipping_charge, tax_amount = calculate_shipping_and_tax(cart.total_price)
         total_amount = Decimal(str(total_amount)) + shipping_charge + tax_amount
 
         # Calculate green points to be earned (based on subtotal)
@@ -743,8 +748,7 @@ def initiate_khalti_payment(request):
         points_to_redeem = int(request.data.get('points_to_redeem', 0))
 
         total_amount = float(cart.total_price)
-        shipping_charge = float(request.data.get('shipping_charge', 75))
-        tax_amount = float(request.data.get('tax_amount', 0))
+        shipping_charge, tax_amount = (float(v) for v in calculate_shipping_and_tax(cart.total_price))
         total_amount = total_amount + shipping_charge + tax_amount
 
         points_to_earn = calculate_points_earned(float(cart.total_price))

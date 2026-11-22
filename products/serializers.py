@@ -28,7 +28,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'image', 'image_url', 'rating', 'rating_count', 'seller', 'seller_name',
             'is_validated', 'created_at', 'updated_at', 'stock'
         ]
-        read_only_fields = ['seller', 'created_at', 'updated_at']
+        read_only_fields = ['seller', 'created_at', 'updated_at', 'is_validated', 'rating', 'rating_count']
         
     def get_seller_name(self, obj):
         if obj.seller:

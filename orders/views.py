@@ -133,6 +133,14 @@ def get_order_history(request):
     serializer = OrderSerializer(orders, many=True)
     return Response(serializer.data)
 
+def calculate_shipping_and_tax(subtotal):
+    """Server-side shipping and tax (same rules as the checkout page); never trust client values."""
+    subtotal = Decimal(str(subtotal))
+    shipping = Decimal('0') if subtotal >= 700 else Decimal('75')
+    tax = (subtotal * Decimal('0.13')).quantize(Decimal('1'), rounding='ROUND_HALF_UP')
+    return shipping, tax
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_order(request):
@@ -144,8 +152,7 @@ def create_order(request):
 
         total_amount = cart.total_price
         points_to_redeem = int(request.data.get('points_to_redeem', 0))
-        shipping_charge = Decimal(str(request.data.get('shipping_charge', 75)))
-        tax_amount = Decimal(str(request.data.get('tax_amount', 0)))
+        shipping_charge, tax_amount = calculate_shipping_and_tax(cart.total_price)
         points_discount = 0
 
         # Calculate total including shipping and tax
@@ -208,7 +215,7 @@ from django.conf import settings
 
 # eSewa Configuration
 ESEWA_MERCHANT_ID = getattr(settings, 'ESEWA_MERCHANT_ID', 'EPAYTEST')  # Test merchant ID
-ESEWA_SECRET_KEY = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')  # Test secret key
+ESEWA_SECRET_KEY = getattr(settings, 'ESEWA_SECRET_KEY', '')  # Test secret key
 ESEWA_PAYMENT_URL = getattr(settings, 'ESEWA_PAYMENT_URL', 'https://rc-epay.esewa.com.np/api/epay/main/v2/form')
 ESEWA_VERIFY_URL = getattr(settings, 'ESEWA_VERIFY_URL', 'https://rc-epay.esewa.com.np/api/epay/transaction/status/')
 
@@ -232,8 +239,7 @@ def initiate_esewa_payment(request):
 
         # Calculate total
         total_amount = float(cart.total_price)
-        shipping_charge = float(request.data.get('shipping_charge', 75))
-        tax_amount = float(request.data.get('tax_amount', 0))
+        shipping_charge, tax_amount = (float(v) for v in calculate_shipping_and_tax(cart.total_price))
         total_amount = total_amount + shipping_charge + tax_amount
 
         # Calculate green points to be earned (based on subtotal)
@@ -405,25 +411,26 @@ def esewa_payment_verify(request):
                 'transaction_uuid': transaction_uuid
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # For testing, if we don't have transaction_code or total_amount, mark as success
+        from django.http import HttpResponseRedirect
+        frontend_url_base = "http://localhost:5173/order-confirmation"
+
+        # Already processed (or not awaiting payment): never change state again
+        if order.payment_status != 'pending':
+            result = 'success' if order.payment_status == 'completed' else 'failed'
+            return HttpResponseRedirect(f"{frontend_url_base}?order_id={order.id}&status={result}")
+
+        # Payment parameters are required; the old "mark as paid for testing" bypass was removed
         if not transaction_code or not total_amount:
-            # Mark payment as completed for testing
-            order.payment_status = 'completed'
-            order.status = 'confirmed'
-            order.esewa_ref_id = transaction_code or 'TEST-' + str(order.id)
-            order.save()
-            
-            # Award green points
-            if order.points_earned > 0:
-                award_points(order.user, order, order.points_earned)
-            
-            # Redirect to success page
-            frontend_url = f"http://localhost:5173/order-confirmation?order_id={order.id}&status=success"
-            
-            # Return HTML redirect for browser
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(frontend_url)
-        
+            return Response({'error': 'Missing payment parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # The amount paid must match what this order costs
+        try:
+            amount_ok = abs(Decimal(str(total_amount).replace(',', '')) - Decimal(str(order.total_amount))) <= Decimal('0.01')
+        except Exception:
+            amount_ok = False
+        if not amount_ok:
+            return HttpResponseRedirect(f"{frontend_url_base}?order_id={order.id}&status=failed")
+
         # Verify payment with eSewa
         verify_url = f"{ESEWA_VERIFY_URL}?product_code={ESEWA_MERCHANT_ID}&total_amount={total_amount}&transaction_uuid={transaction_uuid}"
         
@@ -510,16 +517,17 @@ def esewa_payment_failure(request):
         if transaction_uuid:
             try:
                 order = Order.objects.get(transaction_id=transaction_uuid)
-                order.payment_status = 'failed'
-                order.status = 'cancelled'
-                order.save()
                 order_id = order.id
-                
-                # Restore stock
-                for item in order.items.all():
-                    product = item.product
-                    product.stock += item.quantity
-                    product.save()
+                if order.payment_status == 'pending':
+                    order.payment_status = 'failed'
+                    order.status = 'cancelled'
+                    order.save()
+
+                    # Restore stock
+                    for item in order.items.all():
+                        product = item.product
+                        product.stock += item.quantity
+                        product.save()
                     
             except Order.DoesNotExist:
                 pass
@@ -551,8 +559,7 @@ def create_cod_order(request):
 
         # Calculate total
         total_amount = cart.total_price
-        shipping_charge = Decimal(str(request.data.get('shipping_charge', 75)))
-        tax_amount = Decimal(str(request.data.get('tax_amount', 0)))
+        shipping_charge, tax_amount = calculate_shipping_and_tax(cart.total_price)
         total_amount = Decimal(str(total_amount)) + shipping_charge + tax_amount
 
         # Calculate green points to be earned (based on subtotal)
@@ -719,7 +726,7 @@ def cancel_order(request, order_id):
 
 
 # Khalti Payment Gateway Configuration (Sandbox)
-KHALTI_SECRET_KEY = getattr(settings, 'KHALTI_SECRET_KEY', 'live_secret_key_68791341fdd94846a146f0457ff7b455')  # Test secret key
+KHALTI_SECRET_KEY = getattr(settings, 'KHALTI_SECRET_KEY', '')  # Test secret key
 KHALTI_INITIATE_URL = 'https://dev.khalti.com/api/v2/epayment/initiate/'
 KHALTI_LOOKUP_URL = 'https://dev.khalti.com/api/v2/epayment/lookup/'
 
@@ -741,8 +748,7 @@ def initiate_khalti_payment(request):
         points_to_redeem = int(request.data.get('points_to_redeem', 0))
 
         total_amount = float(cart.total_price)
-        shipping_charge = float(request.data.get('shipping_charge', 75))
-        tax_amount = float(request.data.get('tax_amount', 0))
+        shipping_charge, tax_amount = (float(v) for v in calculate_shipping_and_tax(cart.total_price))
         total_amount = total_amount + shipping_charge + tax_amount
 
         points_to_earn = calculate_points_earned(float(cart.total_price))
@@ -848,6 +854,11 @@ def khalti_payment_verify(request):
     except Order.DoesNotExist:
         return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order_id}&status=failed')
 
+    # The pidx must be the one issued for this order, and the order must still be awaiting payment
+    if not pidx or pidx != order.transaction_id or order.payment_status != 'pending':
+        result = 'success' if order.payment_status == 'completed' else 'failed'
+        return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status={result}')
+
     # User cancelled
     if callback_status == 'User canceled':
         order.payment_status = 'failed'
@@ -867,7 +878,13 @@ def khalti_payment_verify(request):
         lookup_response = requests.post(KHALTI_LOOKUP_URL, json={'pidx': pidx}, headers=headers, timeout=15)
         lookup_data = lookup_response.json()
 
-        if lookup_data.get('status') == 'Completed':
+        paid_ok = False
+        try:
+            paid_ok = abs(int(lookup_data.get('total_amount', 0)) - int(Decimal(str(order.total_amount)) * 100)) <= 1
+        except Exception:
+            pass
+
+        if lookup_data.get('status') == 'Completed' and paid_ok:
             order.payment_status = 'completed'
             order.status = 'confirmed'
             order.save()

@@ -208,7 +208,7 @@ from django.conf import settings
 
 # eSewa Configuration
 ESEWA_MERCHANT_ID = getattr(settings, 'ESEWA_MERCHANT_ID', 'EPAYTEST')  # Test merchant ID
-ESEWA_SECRET_KEY = getattr(settings, 'ESEWA_SECRET_KEY', '8gBm/:&EnhH.1/q')  # Test secret key
+ESEWA_SECRET_KEY = getattr(settings, 'ESEWA_SECRET_KEY', '')  # Test secret key
 ESEWA_PAYMENT_URL = getattr(settings, 'ESEWA_PAYMENT_URL', 'https://rc-epay.esewa.com.np/api/epay/main/v2/form')
 ESEWA_VERIFY_URL = getattr(settings, 'ESEWA_VERIFY_URL', 'https://rc-epay.esewa.com.np/api/epay/transaction/status/')
 
@@ -719,7 +719,7 @@ def cancel_order(request, order_id):
 
 
 # Khalti Payment Gateway Configuration (Sandbox)
-KHALTI_SECRET_KEY = getattr(settings, 'KHALTI_SECRET_KEY', 'live_secret_key_68791341fdd94846a146f0457ff7b455')  # Test secret key
+KHALTI_SECRET_KEY = getattr(settings, 'KHALTI_SECRET_KEY', '')  # Test secret key
 KHALTI_INITIATE_URL = 'https://dev.khalti.com/api/v2/epayment/initiate/'
 KHALTI_LOOKUP_URL = 'https://dev.khalti.com/api/v2/epayment/lookup/'
 

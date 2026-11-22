@@ -230,8 +230,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'asmitpradhan321@gmail.com'    # sender address
-EMAIL_HOST_PASSWORD = 'ssdy ixkx eeev bcqt' # your generated App Password
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')    # sender address
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')  # Gmail App Password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # For console testing (disabled)
@@ -242,13 +242,13 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # eSewa Payment Gateway Configuration
 # Test/Sandbox credentials
 ESEWA_MERCHANT_ID = 'EPAYTEST'
-ESEWA_SECRET_KEY = '8gBm/:&EnhH.1/q'
+ESEWA_SECRET_KEY = config('ESEWA_SECRET_KEY', default='')
 ESEWA_PAYMENT_URL = 'https://rc-epay.esewa.com.np/api/epay/main/v2/form'
 ESEWA_VERIFY_URL = 'https://rc-epay.esewa.com.np/api/epay/transaction/status/'
 
 # Khalti Payment Gateway Configuration
 # Sandbox secret key — replace with your own from test-admin.khalti.com
-KHALTI_SECRET_KEY = 'live_secret_key_68791341fdd94846a146f0457ff7b455'
+KHALTI_SECRET_KEY = config('KHALTI_SECRET_KEY', default='')
 KHALTI_INITIATE_URL = 'https://dev.khalti.com/api/v2/epayment/initiate/'
 KHALTI_LOOKUP_URL = 'https://dev.khalti.com/api/v2/epayment/lookup/'
 

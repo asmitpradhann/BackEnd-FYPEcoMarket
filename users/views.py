@@ -17,6 +17,7 @@ from .serializers import SellerOnboardingSerializer
 from rest_framework.permissions import IsAuthenticated
 import random
 import secrets
+from django.contrib.auth.hashers import make_password, identify_hasher
 from rest_framework.throttling import ScopedRateThrottle
 import string
 from django.utils import timezone
@@ -266,7 +267,15 @@ class VerifyEmailView(APIView):
             
             if serializer.is_valid():
                 user = serializer.save()
-                
+
+                # Registration stores the password already hashed; restore it (create_user would hash it again)
+                try:
+                    identify_hasher(user_data['password'])
+                    user.password = user_data['password']
+                    user.save(update_fields=['password'])
+                except (ValueError, KeyError):
+                    pass  # older pending record with a plain password: already hashed by create_user
+
                 # Mark verification as complete
                 verification.is_verified = True
                 verification.save()
@@ -310,6 +319,11 @@ class RegisterUserView(APIView):
         serializer = RegisterSerializer(data=data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Never store the plain-text password while waiting for email verification
+        hashed_password = make_password(data['password'])
+        data['password'] = hashed_password
+        data['password2'] = hashed_password
 
         # Create email verification record with 6-digit code
         verification_code = ''.join(secrets.choice(string.digits) for _ in range(6))
@@ -355,6 +369,11 @@ class RegisterSellerView(APIView):
         serializer = RegisterSerializer(data=data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Never store the plain-text password while waiting for email verification
+        hashed_password = make_password(data['password'])
+        data['password'] = hashed_password
+        data['password2'] = hashed_password
 
         # Create email verification record with 6-digit code
         verification_code = ''.join(secrets.choice(string.digits) for _ in range(6))

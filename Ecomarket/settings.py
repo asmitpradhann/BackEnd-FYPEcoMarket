@@ -179,7 +179,11 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',  # allow any by default
-    )
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'otp': '5/min',    # OTP verify / reset endpoints (stops brute-forcing 6-digit codes)
+        'login': '20/min',
+    },
 }
 
 # JWT Settings

@@ -16,6 +16,8 @@ from .models import SellerOnboarding, EmailVerification
 from .serializers import SellerOnboardingSerializer
 from rest_framework.permissions import IsAuthenticated
 import random
+import secrets
+from rest_framework.throttling import ScopedRateThrottle
 import string
 from django.utils import timezone
 
@@ -233,6 +235,8 @@ def send_password_reset_email(recipient_email, first_name, reset_url):
 
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'otp'
 
     def post(self, request):
         """Verify email using the confirmation code"""
@@ -308,7 +312,7 @@ class RegisterUserView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         # Create email verification record with 6-digit code
-        verification_code = ''.join(random.choices(string.digits, k=6))
+        verification_code = ''.join(secrets.choice(string.digits) for _ in range(6))
         email_verification = EmailVerification.objects.create(
             email=data['email'],
             verification_code=verification_code,
@@ -353,7 +357,7 @@ class RegisterSellerView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         # Create email verification record with 6-digit code
-        verification_code = ''.join(random.choices(string.digits, k=6))
+        verification_code = ''.join(secrets.choice(string.digits) for _ in range(6))
         email_verification = EmailVerification.objects.create(
             email=data['email'],
             verification_code=verification_code,
@@ -404,6 +408,8 @@ class RegisterSellerView(APIView):
 # ---------------------------
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
     def post(self, request):
         username = request.data.get('username')
@@ -592,6 +598,8 @@ class ForgotPasswordOTPView(APIView):
     POST { username, email } → sends OTP, returns { message, email }
     """
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'otp'
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -612,7 +620,7 @@ class ForgotPasswordOTPView(APIView):
             return Response({"error": "Username and email do not match the same account"}, status=400)
 
         # Generate 6-digit OTP and store in EmailVerification (reuse model)
-        otp = ''.join(random.choices(string.digits, k=6))
+        otp = ''.join(secrets.choice(string.digits) for _ in range(6))
 
         # Delete any existing unverified reset OTPs for this email
         EmailVerification.objects.filter(email=email, role='password_reset').delete()
@@ -647,6 +655,8 @@ class ResetPasswordOTPView(APIView):
     POST { username, email, otp, password, password2 }
     """
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'otp'
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -661,8 +671,8 @@ class ResetPasswordOTPView(APIView):
         if password != password2:
             return Response({"error": "Passwords do not match"}, status=400)
 
-        if len(password) < 4:
-            return Response({"error": "Password must be at least 4 characters"}, status=400)
+        if len(password) < 8:
+            return Response({"error": "Password must be at least 8 characters"}, status=400)
 
         # Verify OTP
         try:

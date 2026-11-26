@@ -39,12 +39,12 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.ratings.count()
     
     def get_image_url(self, obj):
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
-        return None
+        return obj.image_link(self.context.get('request'))
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['image'] = instance.image_link(self.context.get('request'))
+        return data
     
     def get_category_display(self, obj):
         return obj.get_category_display_name()

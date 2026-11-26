@@ -157,7 +157,7 @@ class AdminProductsView(APIView):
             'product_category_id': p.product_category.id if p.product_category else None,
             'product_category': p.product_category.name if p.product_category else '—',
             'description': p.description,
-            'image_url': request.build_absolute_uri(p.image.url) if p.image else None,
+            'image_url': p.image_link(request),
             'created_at': p.created_at,
         } for p in products]
         return Response(data)

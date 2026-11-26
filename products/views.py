@@ -581,7 +581,8 @@ class SearchSuggestionsView(APIView):
         for p in products:
             image_url = None
             if p['image']:
-                image_url = request.build_absolute_uri(default_storage.url(p['image']))
+                raw = str(p['image'])
+                image_url = raw if raw.startswith(('http://', 'https://')) else request.build_absolute_uri(default_storage.url(raw))
             results.append({
                 'id': p['id'],
                 'name': p['name'],

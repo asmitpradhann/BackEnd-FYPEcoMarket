@@ -27,7 +27,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-m+(-km07z%iqszy$5j_(zb&7dglc&$df@_a2bm82dzq%n!5zeg')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Off unless DEBUG=True is set (your local .env sets it; leave it unset when hosting)
+DEBUG = config('DEBUG', default=False, cast=bool)
+
+if not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    if SECRET_KEY.startswith('django-insecure-'):
+        raise ImproperlyConfigured("Set a real SECRET_KEY environment variable when DEBUG is off.")
+    # Hosts like Render terminate HTTPS at a proxy; trust its header so request.scheme is https
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 

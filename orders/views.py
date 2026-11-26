@@ -412,7 +412,7 @@ def esewa_payment_verify(request):
             }, status=status.HTTP_404_NOT_FOUND)
         
         from django.http import HttpResponseRedirect
-        frontend_url_base = "http://localhost:5173/order-confirmation"
+        frontend_url_base = f"{settings.FRONTEND_URL}/order-confirmation"
 
         # Already processed (or not awaiting payment): never change state again
         if order.payment_status != 'pending':
@@ -456,7 +456,7 @@ def esewa_payment_verify(request):
                     print(f"Payment success email failed: {e}")
 
                 # Redirect to success page
-                frontend_url = f"http://localhost:5173/order-confirmation?order_id={order.id}&status=success"
+                frontend_url = f"{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=success"
                 from django.http import HttpResponseRedirect
                 return HttpResponseRedirect(frontend_url)
             else:
@@ -477,7 +477,7 @@ def esewa_payment_verify(request):
                 except Exception as e:
                     print(f"Payment failed email error: {e}")
 
-                frontend_url = f"http://localhost:5173/order-confirmation?order_id={order.id}&status=failed"
+                frontend_url = f"{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=failed"
                 from django.http import HttpResponseRedirect
                 return HttpResponseRedirect(frontend_url)
                 
@@ -490,7 +490,7 @@ def esewa_payment_verify(request):
             for item in order.items.all():
                 item.product.stock += item.quantity
                 item.product.save()
-            frontend_url = f"http://localhost:5173/order-confirmation?order_id={order.id}&status=failed"
+            frontend_url = f"{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=failed"
             from django.http import HttpResponseRedirect
             return HttpResponseRedirect(frontend_url)
         
@@ -533,7 +533,7 @@ def esewa_payment_failure(request):
                 pass
         
         # Redirect to failure page
-        frontend_url = f"http://localhost:5173/order-confirmation?order_id={order_id or ''}&status=failed"
+        frontend_url = f"{settings.FRONTEND_URL}/order-confirmation?order_id={order_id or ''}&status=failed"
         from django.http import HttpResponseRedirect
         return HttpResponseRedirect(frontend_url)
         
@@ -791,7 +791,7 @@ def initiate_khalti_payment(request):
         amount_paisa = int(total_amount * 100)
 
         return_url = f'{request.scheme}://{request.get_host()}/api/orders/khalti/verify/?order_id={order.id}'
-        website_url = 'http://localhost:5173'
+        website_url = settings.FRONTEND_URL
 
         khalti_payload = {
             'return_url': return_url,
@@ -852,12 +852,12 @@ def khalti_payment_verify(request):
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order_id}&status=failed')
+        return HttpResponseRedirect(f'{settings.FRONTEND_URL}/order-confirmation?order_id={order_id}&status=failed')
 
     # The pidx must be the one issued for this order, and the order must still be awaiting payment
     if not pidx or pidx != order.transaction_id or order.payment_status != 'pending':
         result = 'success' if order.payment_status == 'completed' else 'failed'
-        return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status={result}')
+        return HttpResponseRedirect(f'{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status={result}')
 
     # User cancelled
     if callback_status == 'User canceled':
@@ -867,7 +867,7 @@ def khalti_payment_verify(request):
         for item in order.items.all():
             item.product.stock += item.quantity
             item.product.save()
-        return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status=failed')
+        return HttpResponseRedirect(f'{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=failed')
 
     # Lookup verification
     try:
@@ -896,7 +896,7 @@ def khalti_payment_verify(request):
                 send_payment_success_email(order)
             except Exception as e:
                 print(f"Khalti payment success email failed: {e}")
-            return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status=success')
+            return HttpResponseRedirect(f'{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=success')
         else:
             order.payment_status = 'failed'
             order.status = 'cancelled'
@@ -909,7 +909,7 @@ def khalti_payment_verify(request):
                 send_payment_failed_email(order)
             except Exception as e:
                 print(f"Khalti payment failed email error: {e}")
-            return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status=failed')
+            return HttpResponseRedirect(f'{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=failed')
 
     except Exception as e:
         print(f'Khalti lookup error: {e}')
@@ -920,7 +920,7 @@ def khalti_payment_verify(request):
         for item in order.items.all():
             item.product.stock += item.quantity
             item.product.save()
-        return HttpResponseRedirect(f'http://localhost:5173/order-confirmation?order_id={order.id}&status=failed')
+        return HttpResponseRedirect(f'{settings.FRONTEND_URL}/order-confirmation?order_id={order.id}&status=failed')
 
 
 @api_view(['GET'])

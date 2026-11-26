@@ -313,10 +313,10 @@ def send_payment_failed_email(order):
 
     body += _notice("💡", "Please try placing your order again. If the issue persists, contact your bank or try a different payment method.", "#795548", "#fff8e1", "#ffc107")
 
-    body += """
+    body += f"""
     <tr><td style="padding:20px 40px 36px;">
       <p style="margin:0;color:#777;font-size:13px;">
-        We're sorry for the inconvenience. Visit <a href="http://localhost:5173/main" style="color:#2e7d32;">Ecomarket</a> to try again.
+        We're sorry for the inconvenience. Visit <a href="{settings.FRONTEND_URL}/main" style="color:#2e7d32;">Ecomarket</a> to try again.
       </p>
     </td></tr>"""
 
@@ -491,11 +491,11 @@ def send_order_cancelled_email(order):
     else:
         body += _notice("ℹ️", "No payment was charged for this order, so no refund is required.", "#555", "#f5f5f5", "#bbb")
 
-    body += """
+    body += f"""
     <tr><td style="padding:20px 40px 36px;">
       <p style="margin:0;color:#777;font-size:13px;">
         We hope to see you again soon. Visit
-        <a href="http://localhost:5173/main" style="color:#2e7d32;">Ecomarket</a>
+        <a href="{settings.FRONTEND_URL}/main" style="color:#2e7d32;">Ecomarket</a>
         to continue shopping sustainably. 🌿
       </p>
     </td></tr>"""

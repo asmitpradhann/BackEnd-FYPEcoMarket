@@ -4,9 +4,14 @@ from django.conf import settings
 from django.conf.urls.static import static
 from users.views import LoginView, ProfileView, RegisterSellerView, RegisterUserView, VerifyEmailView
 from rest_framework_simplejwt.views import TokenRefreshView
+from django.http import JsonResponse
+
+def ping(request):
+    return JsonResponse({"status": "ok"})
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/ping/', ping, name='ping'),
     path('api/register/', RegisterUserView.as_view()),
     path('api/login/', LoginView.as_view()),
     path('api/profile/', ProfileView.as_view()),

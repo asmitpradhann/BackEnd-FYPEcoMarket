@@ -95,8 +95,17 @@ class Product(models.Model):
         help_text="Legacy category (will be migrated to eco_category)"
     )
     
-    image = models.ImageField(upload_to='product_images/')
+    image = models.ImageField(upload_to='product_images/', max_length=500)
     rating = models.FloatField(default=0)
+
+    def image_link(self, request=None):
+        """Image URL; existing products store a full Cloudinary URL, newer uploads store a storage path."""
+        if not self.image:
+            return None
+        raw = str(self.image)
+        if raw.startswith(('http://', 'https://')):
+            return raw
+        return request.build_absolute_uri(self.image.url) if request else self.image.url
     stock = models.PositiveIntegerField(default=0, help_text="Number of items available in stock")
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products', null=True, blank=True)
     is_validated = models.BooleanField(default=False, help_text="Admin verification for product quality and authenticity")

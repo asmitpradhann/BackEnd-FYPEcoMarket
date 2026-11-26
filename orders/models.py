@@ -75,7 +75,7 @@ class Order(models.Model):
     
     # Shipping address
     shipping_address = models.TextField(blank=True, null=True)
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    phone_number = models.CharField(max_length=60, blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

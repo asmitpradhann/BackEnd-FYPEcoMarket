@@ -10,3 +10,5 @@ google-auth==2.29.0
 Pillow==12.3.0
 gunicorn==27.0.1
 psycopg2-binary==2.9.13
+cloudinary==1.47.0
+django-cloudinary-storage==0.3.0

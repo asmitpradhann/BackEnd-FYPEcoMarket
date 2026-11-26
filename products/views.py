@@ -1,3 +1,4 @@
+from django.core.files.storage import default_storage
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -580,7 +581,7 @@ class SearchSuggestionsView(APIView):
         for p in products:
             image_url = None
             if p['image']:
-                image_url = request.build_absolute_uri(f"/media/{p['image']}")
+                image_url = request.build_absolute_uri(default_storage.url(p['image']))
             results.append({
                 'id': p['id'],
                 'name': p['name'],

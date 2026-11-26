@@ -81,14 +81,14 @@ ROOT_URLCONF = 'Ecomarket.urls'
 # Address of the React frontend (used for payment redirects and links in emails)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
 
+# Only these sites may call the API from a browser. The frontend address is always allowed.
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:5173,http://localhost:5174',
     cast=Csv()
 )
-
-# For development, you can also use this (less secure but more flexible):
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+if FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
 CORS_ALLOW_CREDENTIALS = True
 

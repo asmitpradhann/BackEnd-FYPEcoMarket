@@ -224,10 +224,11 @@ SIMPLE_JWT = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Cloudinary media storage (persistent images on Render). Used only when CLOUDINARY_CLOUD_NAME is set;
-# otherwise files are stored on local disk in MEDIA_ROOT.
+# Cloudinary media storage (for hosting). Turn on with USE_CLOUDINARY=True in the environment;
+# otherwise files are stored and served from local disk (MEDIA_ROOT).
+USE_CLOUDINARY = config('USE_CLOUDINARY', default=False, cast=bool)
 CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
-if CLOUDINARY_CLOUD_NAME:
+if USE_CLOUDINARY and CLOUDINARY_CLOUD_NAME:
     INSTALLED_APPS += ['cloudinary_storage', 'cloudinary']
     CLOUDINARY_STORAGE = {
         'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
